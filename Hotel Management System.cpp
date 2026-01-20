@@ -219,8 +219,12 @@ int main(){
 
     int choice;
     do{
-        cout<<"\n--- HOTEL MANAGEMENT SYSTEM ---\n";
+        cout << "\033[96m ";
+        cout<<"\n--- Epstein Hotel ---\n";
+        cout << "\033[0m ";
+        cout << "\033[92m ";
         cout<<"1 Login (Admin/Employee)\n2 Book Room (Customer)\n0 Exit\nChoice: ";
+        cout << "\033[0m ";
         cin>>choice;
         if(choice==1) adminEmpLogin();
         else if(choice==2) customerMenu();
