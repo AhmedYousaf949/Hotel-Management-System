@@ -110,7 +110,9 @@ void viewHistory(){
 void adminMenu(){
     int c;
     do{
+        cout << "\033[90m ";
         cout<<"\n1 View FreeRooms 2 View All Rooms 3 View History 4 Undo 0 Logout: ";
+        cout << "\033[0m ";
         cin>>c;
         if(c==1){
             Floor* f=floorHead;
@@ -142,7 +144,11 @@ void adminEmpLogin(){
     cout<<"Password: "; cin>>pass;
     if(match(user,(char*)"admin") && match(pass,(char*)"123")) adminMenu();
     else if(match(user,(char*)"emp") && match(pass,(char*)"123")) employeeMenu();
-    else cout<<"Invalid login\n";
+    else {
+        cout << "\033[91m ";
+         cout<<"Invalid login\n";
+         cout << "\033[0m ";
+    }
 }
 void customerMenu(){
     int id,p;
@@ -192,7 +198,11 @@ void customerMenu(){
         if(booked) break;
         f=f->next;
     }
-    if(!booked) cout<<"No rooms available for selected type/preferences\n";
+    if(!booked) {
+        cout << "\033[91m ";
+         cout<<"No rooms available for selected type/preferences\n";
+         cout << "\033[0m ";
+    }
 }
 
 int main(){
