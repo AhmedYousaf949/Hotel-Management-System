@@ -1,37 +1,33 @@
 #include <iostream>
 using namespace std;
-
 struct Room {
     int roomNo;
     bool booked;
-    bool vip; 
+    bool vip;
+    int view;  
+    int smoke;  
     Room* next;
 };
 
 struct Floor {
     int floorNo;
     Room* rooms;
-    bool vip; 
+    bool vip;
     Floor* next;
     Floor* prev;
 };
 
-struct Booking {
-    int customerId;
-    int priority; 
-    int floorNo;  
-    int roomNo;   
-    Booking* next;
-};
-
 struct History {
     int customerId;
+    int floorNo;
     int roomNo;
+    bool vip;
+    int view;   
+    int smoke;  
     History* next;
 };
 
 Floor* floorHead = NULL;
-Booking* bookingFront = NULL;
 History* historyTop = NULL;
 
 bool match(char a[], char b[]) {
@@ -42,89 +38,52 @@ bool match(char a[], char b[]) {
     }
     return a[i]=='\0' && b[i]=='\0';
 }
-
-// Initialize hotel with 20 floors and rooms
 void initHotel() {
     for(int f=1; f<=20; f++){
-        bool vipFloor = (f>11); // floors 12-20 VIP
-        Floor* fl = new Floor{f, NULL, vipFloor, NULL, NULL};
+        bool vipFloor = (f>11);
+        Floor* fl = new Floor{f,NULL,vipFloor,NULL,NULL};
         if(!floorHead) floorHead=fl;
-        else{
+        else {
             Floor* t=floorHead;
             while(t->next) t=t->next;
             t->next=fl;
             fl->prev=t;
         }
-
-        int roomCount = vipFloor ? 60 : 80; 
+        int roomCount = vipFloor ? 60 : 80;
         for(int r=1; r<=roomCount; r++){
-            Room* rm = new Room{r, false, vipFloor, fl->rooms};
-            fl->rooms = rm;
+            int view=1+rand()%2; 
+            int smoke=1+rand()%2; 
+            if(!vipFloor){ view=0; smoke=0; } 
+            Room* rm = new Room{r,false,vipFloor,view,smoke,fl->rooms};
+            fl->rooms=rm;
         }
     }
 }
-
-// Count free rooms on a floor
 int countFreeRooms(Floor* f){
     int cnt=0;
     Room* r=f->rooms;
     while(r){ if(!r->booked) cnt++; r=r->next; }
     return cnt;
 }
-
-// Count booked rooms on a floor
 int countBookedRooms(Floor* f){
     int cnt=0;
     Room* r=f->rooms;
     while(r){ if(r->booked) cnt++; r=r->next; }
     return cnt;
 }
-
-// Assign room (Employee)
-void assignRoom() {
-    if(!bookingFront){
-        cout<<"No booking requests\n";
-        return;
-    }
-
-    int fno;
-    cout<<"Enter floor number to assign room from: ";
-    cin>>fno;
-
-    Floor* f = floorHead;
-    while(f && f->floorNo != fno) f=f->next;
-    if(!f){cout<<"Floor not found\n"; return;}
-
-    int freeRooms = countFreeRooms(f);
-    if(freeRooms==0){ cout<<"No free rooms on this floor\n"; return; }
-    cout<<"Number of free rooms on Floor "<<f->floorNo<<": "<<freeRooms<<endl;
-
-    Room* r = f->rooms;
-    while(r){
-        if(!r->booked){
-            r->booked=true;
-            History* h = new History{bookingFront->customerId, r->roomNo, historyTop};
-            historyTop=h;
-            cout<<"Assigned Room "<<r->roomNo<<" on Floor "<<f->floorNo<<endl;
-            Booking* temp = bookingFront;
-            bookingFront=bookingFront->next;
-            delete temp;
-            return;
-        }
-        r=r->next;
-    }
-}
-
-// Undo last booking
 void undoBooking() {
-    if(!historyTop){cout<<"No booking to undo\n"; return;}
+    if(!historyTop){ cout<<"No booking to undo\n"; return;}
     int roomNo = historyTop->roomNo;
+    int floorNo = historyTop->floorNo;
     Floor* f=floorHead;
     while(f){
-        Room* r=f->rooms;
-        while(r){
-            if(r->roomNo==roomNo){ r->booked=false; break; }
-            r=r->next;
+        if(f->floorNo==floorNo){
+            Room* r=f->rooms;
+            while(r){
+                if(r->roomNo==roomNo){ r->booked=false; break;}
+                r=r->next;
+            }
+            break;
         }
         f=f->next;
     }
@@ -133,17 +92,21 @@ void undoBooking() {
     delete temp;
     cout<<"Last booking undone\n";
 }
-
-// View history
 void viewHistory(){
+    if(!historyTop){ cout<<"No bookings yet.\n"; return;}
     History* h=historyTop;
     while(h){
-        cout<<"Customer "<<h->customerId<<" Room "<<h->roomNo<<endl;
+        cout<<"Customer "<<h->customerId<<" booked ";
+        cout<<(h->vip?"VIP ":"Normal ");
+        cout<<"Room "<<h->roomNo<<" on Floor "<<h->floorNo;
+        if(h->vip){
+            cout<<" [View:"<< (h->view==1?"City":"Garden")<<", ";
+            cout<<"Type:"<< (h->smoke==1?"Smoking":"Non-Smoking")<<"]";
+        }
+        cout<<endl;
         h=h->next;
     }
 }
-
-// Admin menu
 void adminMenu(){
     int c;
     do{
@@ -151,86 +114,115 @@ void adminMenu(){
         cin>>c;
         if(c==1){
             Floor* f=floorHead;
-            while(f){
-                cout<<"Floor "<<f->floorNo<<": "<<countFreeRooms(f)<<" free rooms"<<endl;
-                f=f->next;
-            }
+            while(f){ cout<<"Floor "<<f->floorNo<<": "<<countFreeRooms(f)<<" free rooms"<<endl; f=f->next;}
         }
         else if(c==2){
             Floor* f=floorHead;
-            while(f){
-                cout<<"Floor "<<f->floorNo<<": "<<countFreeRooms(f)<<" free, "<<countBookedRooms(f)<<" booked"<<endl;
-                f=f->next;
-            }
+            while(f){ cout<<"Floor "<<f->floorNo<<": "<<countFreeRooms(f)<<" free, "<<countBookedRooms(f)<<" booked"<<endl; f=f->next;}
         }
         else if(c==3) viewHistory();
         else if(c==4) undoBooking();
     }while(c);
 }
-
-// Employee menu
 void employeeMenu(){
     int c;
     do{
-        cout<<"\n1 AssignRoom 2 View FreeRooms 3 Undo 0 Logout: ";
+        cout<<"\n1 View FreeRooms 2 Undo Last Booking 0 Logout: ";
         cin>>c;
-        if(c==1) assignRoom();
-        else if(c==2){
+        if(c==1){
             Floor* f=floorHead;
-            while(f){
-                cout<<"Floor "<<f->floorNo<<": "<<countFreeRooms(f)<<" free rooms"<<endl;
-                f=f->next;
-            }
+            while(f){ cout<<"Floor "<<f->floorNo<<": "<<countFreeRooms(f)<<" free rooms"<<endl; f=f->next;}
         }
-        else if(c==3) undoBooking();
+        else if(c==2) undoBooking();
     }while(c);
 }
-
-// Admin/Employee login
 void adminEmpLogin(){
-    char user[20], pass[20];
+    char user[20],pass[20];
     cout<<"Username: "; cin>>user;
     cout<<"Password: "; cin>>pass;
-
     if(match(user,(char*)"admin") && match(pass,(char*)"123")) adminMenu();
     else if(match(user,(char*)"emp") && match(pass,(char*)"123")) employeeMenu();
     else cout<<"Invalid login\n";
 }
-
-// Customer booking
 void customerMenu(){
     int id,p;
     cout<<"Customer ID: "; cin>>id;
     cout<<"Priority (1 VIP 2 Normal): "; cin>>p;
+    int viewChoice=0, smokeChoice=0;
+    if(p==1){
+        cout<<"Choose Room View: 1 City View 2 Garden/No View: ";
+        cin>>viewChoice;
+        cout<<"Choose Room Type: 1 Smoking 2 Non-Smoking: ";
+        cin>>smokeChoice;
+    }
 
     Floor* f=floorHead;
     bool booked=false;
     while(f){
         if(p==1 && f->vip){
             Room* r=f->rooms;
-            while(r){ if(!r->booked){ r->booked=true; booked=true; cout<<"Booked VIP Room "<<r->roomNo<<" on Floor "<<f->floorNo<<endl; break;} r=r->next;}
+            while(r){
+                if(!r->booked && r->view==viewChoice && r->smoke==smokeChoice){
+                    r->booked=true;
+                    booked=true;
+                    cout<<"Booked VIP Room "<<r->roomNo<<" on Floor "<<f->floorNo;
+                    cout<<" [View:"<< (r->view==1?"City":"Garden")<<", ";
+                    cout<<"Type:"<< (r->smoke==1?"Smoking":"Non-Smoking")<<"]\n";
+                    History* h=new History{id,f->floorNo,r->roomNo,true,r->view,r->smoke,historyTop};
+                    historyTop=h;
+                    break;
+                }
+                r=r->next;
+            }
         }
         else if(p==2 && !f->vip){
             Room* r=f->rooms;
-            while(r){ if(!r->booked){ r->booked=true; booked=true; cout<<"Booked Normal Room "<<r->roomNo<<" on Floor "<<f->floorNo<<endl; break;} r=r->next;}
+            while(r){
+                if(!r->booked){
+                    r->booked=true;
+                    booked=true;
+                    cout<<"Booked Normal Room "<<r->roomNo<<" on Floor "<<f->floorNo<<endl;
+                    History* h=new History{id,f->floorNo,r->roomNo,false,0,0,historyTop};
+                    historyTop=h;
+                    break;
+                }
+                r=r->next;
+            }
         }
         if(booked) break;
         f=f->next;
     }
-    if(!booked) cout<<"No rooms available for selected type\n";
+    if(!booked) cout<<"No rooms available for selected type/preferences\n";
 }
 
-// Main
 int main(){
-    initHotel();
+    srand(time(0));
+    for(int f=1; f<=20; f++){
+        bool vipFloor = (f>11);
+        Floor* fl = new Floor{f,NULL,vipFloor,NULL,NULL};
+        if(!floorHead) floorHead=fl;
+        else{
+            Floor* t=floorHead;
+            while(t->next) t=t->next;
+            t->next=fl;
+            fl->prev=t;
+        }
+        int roomCount = vipFloor ? 60 : 80;
+        for(int r=1; r<=roomCount; r++){
+            int view=1+rand()%2;
+            int smoke=1+rand()%2;
+            if(!vipFloor){ view=0; smoke=0; }
+            Room* rm = new Room{r,false,vipFloor,view,smoke,fl->rooms};
+            fl->rooms=rm;
+        }
+    }
+
     int choice;
     do{
         cout<<"\n--- HOTEL MANAGEMENT SYSTEM ---\n";
         cout<<"1 Login (Admin/Employee)\n2 Book Room (Customer)\n0 Exit\nChoice: ";
         cin>>choice;
-
         if(choice==1) adminEmpLogin();
         else if(choice==2) customerMenu();
-
     }while(choice!=0);
 }
