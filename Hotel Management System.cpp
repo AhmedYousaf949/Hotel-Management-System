@@ -1,97 +1,92 @@
 #include <iostream>
 using namespace std;
+
 struct Room {
     int roomNo;
-    bool isBooked;
+    bool booked;
     Room* next;
 };
+
 struct Floor {
     int floorNo;
-    Room* roomHead;
+    Room* rooms;
     Floor* next;
     Floor* prev;
 };
+
 struct Booking {
     int customerId;
-    int priority; 
+    int priority;
     Booking* next;
 };
+
 struct History {
     int customerId;
     int roomNo;
     History* next;
 };
+
 Floor* floorHead = NULL;
 Booking* bookingFront = NULL;
 History* historyTop = NULL;
-void addFloor(int floorNo) {
-    Floor* newFloor = new Floor;
-    newFloor->floorNo = floorNo;
-    newFloor->roomHead = NULL;
-    newFloor->next = NULL;
-    newFloor->prev = NULL;
-    if (floorHead == NULL) {
-        floorHead = newFloor;
-    } else {
-        Floor* temp = floorHead;
-        while (temp->next != NULL)
-            temp = temp->next;
-        temp->next = newFloor;
-        newFloor->prev = temp;
-    }
-    cout << "Floor added successfully\n";
-}
-void addRoom(int floorNo, int roomNo) {
-    Floor* temp = floorHead;
-    while (temp != NULL && temp->floorNo != floorNo)
-        temp = temp->next;
-    if (temp == NULL) {
-        cout << "Floor not found\n";
-        return;
-    }
-    Room* newRoom = new Room;
-    newRoom->roomNo = roomNo;
-    newRoom->isBooked = false;
-    newRoom->next = temp->roomHead;
-    temp->roomHead = newRoom;
-    cout << "Room added to floor " << floorNo << endl;
-}
-void addBooking(int customerId, int priority) {
-    Booking* newBooking = new Booking;
-    newBooking->customerId = customerId;
-    newBooking->priority = priority;
-    newBooking->next = NULL;
 
-    if (bookingFront == NULL || priority < bookingFront->priority) {
-        newBooking->next = bookingFront;
-        bookingFront = newBooking;
+bool match(char a[], char b[]) {
+    int i = 0;
+    while (a[i] && b[i]) {
+        if (a[i] != b[i]) return false;
+        i++;
+    }
+    return a[i] == '\0' && b[i] == '\0';
+}
+
+void addFloor(int fno) {
+    Floor* f = new Floor{fno, NULL, NULL, NULL};
+    if (!floorHead) floorHead = f;
+    else {
+        Floor* t = floorHead;
+        while (t->next) t = t->next;
+        t->next = f;
+        f->prev = t;
+    }
+}
+
+void addRoom(int fno, int rno) {
+    Floor* f = floorHead;
+    while (f && f->floorNo != fno) f = f->next;
+    if (!f) return;
+    Room* r = new Room{rno, false, f->rooms};
+    f->rooms = r;
+}
+
+void addBooking(int id, int p) {
+    Booking* b = new Booking{id, p, NULL};
+    if (!bookingFront || p < bookingFront->priority) {
+        b->next = bookingFront;
+        bookingFront = b;
     } else {
-        Booking* temp = bookingFront;
-        while (temp->next != NULL && temp->next->priority <= priority)
-            temp = temp->next;
-        newBooking->next = temp->next;
-        temp->next = newBooking;
+        Booking* t = bookingFront;
+        while (t->next && t->next->priority <= p)
+            t = t->next;
+        b->next = t->next;
+        t->next = b;
     }
     cout << "Booking request added\n";
 }
+
 void assignRoom() {
-    if (bookingFront == NULL) {
+    if (!bookingFront) {
         cout << "No booking requests\n";
         return;
     }
     Floor* f = floorHead;
-    while (f != NULL) {
-        Room* r = f->roomHead;
-        while (r != NULL) {
-            if (!r->isBooked) {
-                r->isBooked = true;
-                History* h = new History;
-                h->customerId = bookingFront->customerId;
-                h->roomNo = r->roomNo;
-                h->next = historyTop;
+    while (f) {
+        Room* r = f->rooms;
+        while (r) {
+            if (!r->booked) {
+                r->booked = true;
+                History* h = new History{bookingFront->customerId, r->roomNo, historyTop};
                 historyTop = h;
-                cout << "Room " << r->roomNo << " assigned to Customer "
-                     << bookingFront->customerId << endl;
+                cout << "Room assigned: " << r->roomNo << endl;
                 Booking* temp = bookingFront;
                 bookingFront = bookingFront->next;
                 delete temp;
@@ -101,61 +96,112 @@ void assignRoom() {
         }
         f = f->next;
     }
-    cout << "No available rooms\n";
+    cout << "No rooms available\n";
 }
-void viewHistory() {
-    if (historyTop == NULL) {
-        cout << "No history available\n";
+
+void undoBooking() {
+    if (!historyTop) {
+        cout << "No booking to undo\n";
         return;
     }
-
+    int roomNo = historyTop->roomNo;
+    Floor* f = floorHead;
+    while (f) {
+        Room* r = f->rooms;
+        while (r) {
+            if (r->roomNo == roomNo) {
+                r->booked = false;
+                break;
+            }
+            r = r->next;
+        }
+        f = f->next;
+    }
     History* temp = historyTop;
-    while (temp != NULL) {
-        cout << "Customer " << temp->customerId
-             << " booked Room " << temp->roomNo << endl;
-        temp = temp->next;
+    historyTop = historyTop->next;
+    delete temp;
+    cout << "Last booking undone\n";
+}
+
+void viewHistory() {
+    History* h = historyTop;
+    while (h) {
+        cout << "Customer " << h->customerId << " Room " << h->roomNo << endl;
+        h = h->next;
     }
 }
+
+void adminMenu() {
+    int c;
+    do {
+        cout << "\n1 AddFloor 2 AddRoom 3 History 4 Undo 0 Logout: ";
+        cin >> c;
+        if (c == 1) {
+            int f;
+            cin >> f;
+            addFloor(f);
+        }
+        else if (c == 2) {
+            int f, r;
+            cin >> f >> r;
+            addRoom(f, r);
+        }
+        else if (c == 3) viewHistory();
+        else if (c == 4) undoBooking();
+    } while (c);
+}
+
+void employeeMenu() {
+    int c;
+    do {
+        cout << "\n1 AssignRoom 2 Undo 0 Logout: ";
+        cin >> c;
+        if (c == 1) assignRoom();
+        else if (c == 2) undoBooking();
+    } while (c);
+}
+
+void adminEmpLogin() {
+    char user[20], pass[20];
+    cout << "Username: ";
+    cin >> user;
+    cout << "Password: ";
+    cin >> pass;
+
+    if (match(user, (char*)"admin") && match(pass, (char*)"123")) {
+        adminMenu();
+    }
+    else if (match(user, (char*)"emp") && match(pass, (char*)"123")) {
+        employeeMenu();
+    }
+    else {
+        cout << "Invalid login\n";
+    }
+}
+
+void customerMenu() {
+    int id, p;
+    cout << "Customer ID: ";
+    cin >> id;
+    cout << "Priority (1 VIP 2 Normal): ";
+    cin >> p;
+    addBooking(id, p);
+}
+
 int main() {
     int choice;
     do {
         cout << "\n--- HOTEL MANAGEMENT SYSTEM ---\n";
-        cout << "1. Add Floor\n";
-        cout << "2. Add Room\n";
-        cout << "3. Add Booking Request\n";
-        cout << "4. Assign Room\n";
-        cout << "5. View Booking History\n";
-        cout << "0. Exit\n";
-        cout << "Enter choice: ";
+        cout << "1 Login (Admin/Employee)\n";
+        cout << "2 Book Room (Customer)\n";
+        cout << "0 Exit\n";
+        cout << "Choice: ";
         cin >> choice;
-        if (choice == 1) {
-            int f;
-            cout << "Enter floor number: ";
-            cin >> f;
-            addFloor(f);
-        } 
-        else if (choice == 2) {
-            int f, r;
-            cout << "Enter floor number: ";
-            cin >> f;
-            cout << "Enter room number: ";
-            cin >> r;
-            addRoom(f, r);
-        }
-        else if (choice == 3) {
-            int id, p;
-            cout << "Customer ID: ";
-            cin >> id;
-            cout << "Priority (1=VIP, 2=Normal): ";
-            cin >> p;
-            addBooking(id, p);
-        }
-        else if (choice == 4) {
-            assignRoom();
-        }
-        else if (choice == 5) {
-            viewHistory();
-        }
+
+        if (choice == 1) adminEmpLogin();
+        else if (choice == 2) customerMenu();
+
     } while (choice != 0);
+
     return 0;
 }
